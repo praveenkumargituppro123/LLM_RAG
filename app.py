@@ -129,7 +129,7 @@ def setup_qa_chain(_llm, _vectorstore):
 
 # Streamlit UI
 def main():
-    st.title("PDF Chatbot")
+    st.title("DocTalks - Multi-PDF Chatbot")
 
     # Initialize session state
     if "messages" not in st.session_state:
