@@ -192,7 +192,8 @@ def main():
         if st.button("Save API Key"):
             if new_api_key:
                 if update_env_file(new_api_key):
-                    st.success("API key updated successfully. Please restart the app to apply the new API key.")
+                    st.success("API key updated successfully. Restarting app...")
+                    st.rerun()
             else:
                 st.error("Please enter a valid API key.")
 
