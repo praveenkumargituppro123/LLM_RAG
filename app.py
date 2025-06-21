@@ -26,6 +26,14 @@ def update_env_file(api_key: str):
         st.error(f"Error updating .env file: {str(e)}")
         return False
 
+# Function to update data_sources.txt with uploaded PDF names
+def update_data_sources(upload_dir):
+    data_sources_file = os.path.join(upload_dir, "data_sources.txt")
+    pdf_files = [f for f in os.listdir(upload_dir) if f.endswith(".pdf")]
+    with open(data_sources_file, "w") as f:
+        for pdf in pdf_files:
+            f.write(f"{pdf}\n")
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -42,8 +50,8 @@ class OpenRouterLLM(BaseLLM, BaseModel):
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://yourwebsite.com", # Replace with your actual site URL
-            "X-Title": "Your App Name", # Replace with your actual site title
+            "HTTP-Referer": "",  # Replace with your site URL
+            "X-Title": "",  # Replace with your site title
         }
         data = {
             "model": self.model,
@@ -55,10 +63,7 @@ class OpenRouterLLM(BaseLLM, BaseModel):
             response = requests.post(self.url, headers=headers, data=json.dumps(data))
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
-        except requests.exceptions.HTTPError as err:
-            st.error(f"HTTP error occurred: {err}")
-            st.error(f"Response content: {response.text}")
-        except Exception as e:
+        except requests.RequestException as e:
             st.error(f"Error communicating with OpenRouter API: {str(e)}")
             return ""
 
@@ -77,7 +82,7 @@ class OpenRouterLLM(BaseLLM, BaseModel):
 @st.cache_resource
 def load_data(directory: str):
     if not os.path.exists(directory):
-        os.makedirs(directory)
+        os.makedirs(directory)  # Create directory if it doesn't exist
     loader = PyPDFDirectoryLoader(directory)
     data = loader.load()
     if not data:
@@ -119,7 +124,7 @@ def setup_qa_chain(_llm, _vectorstore):
         llm=_llm,
         chain_type="stuff",
         retriever=_vectorstore.as_retriever(),
-        return_source_documents=False
+        return_source_documents=False  # Disable source documents
     )
 
 # Streamlit UI
@@ -141,11 +146,11 @@ def main():
     # Sidebar for file upload, management, and settings
     with st.sidebar:
         st.header("PDF Management")
-
+       
         # Display default and uploaded PDFs
         st.subheader("Available PDFs")
         os.makedirs(st.session_state.upload_dir, exist_ok=True)
-
+       
         # Copy default PDFs from ./data to ./Uploads if not already done
         if not st.session_state.data_copied and os.path.exists("./data"):
             for file in os.listdir("./data"):
@@ -188,20 +193,23 @@ def main():
         st.subheader("OpenRouter API Key")
         current_api_key = os.getenv("OPENROUTER_API_KEY")
         new_api_key = st.text_input("Enter new API key", type="password", value=current_api_key if current_api_key else "")
-
         if st.button("Save API Key"):
             if new_api_key:
                 if update_env_file(new_api_key):
-                    st.success("API key updated successfully. Restarting app...")
-                    st.rerun()
+                    st.success("API key updated successfully. Please click 'Confirm' to reprocess with the new key.")
+                    st.session_state.processing_triggered = False
+                    st.session_state.qa_chain = None
+                else:
+                    st.error("Failed to update API key.")
             else:
                 st.error("Please enter a valid API key.")
 
     # Process PDFs only if Confirm is clicked and PDFs are available
     if st.session_state.processing_triggered and pdf_files:
         with st.spinner("Loading documents..."):
+
             data = load_data(st.session_state.upload_dir)
-            st.write(f"Number of documents loaded: {len(data)}")
+        st.write(f"Number of documents loaded: {len(data)}")
 
         if not data:
             st.session_state.processing_triggered = False
@@ -209,7 +217,7 @@ def main():
 
         with st.spinner("Splitting documents..."):
             texts = split_documents(data)
-            st.write(f"Number of text chunks: {len(texts)}")
+        st.write(f"Number of text chunks: {len(texts)}")
 
         if not texts:
             st.session_state.processing_triggered = False
@@ -220,9 +228,9 @@ def main():
 
         with st.spinner("Creating vector store..."):
             vectorstore = create_vector_store(texts, embeddings)
-            if vectorstore is None:
-                st.session_state.processing_triggered = False
-                st.stop()
+        if vectorstore is None:
+            st.session_state.processing_triggered = False
+            st.stop()
 
         st.success("PDF processing complete. Ready to chat!")
 
@@ -238,9 +246,9 @@ def main():
         # Set up RetrievalQA chain
         with st.spinner("Setting up QA chain..."):
             st.session_state.qa_chain = setup_qa_chain(llm, vectorstore)
-            if st.session_state.qa_chain is None:
-                st.session_state.processing_triggered = False
-                st.stop()
+        if st.session_state.qa_chain is None:
+            st.session_state.processing_triggered = False
+            st.stop()
 
     # Chat interface
     if st.session_state.qa_chain:
@@ -271,4 +279,4 @@ def main():
         st.info("Please upload PDFs and click 'Confirm' to start processing.")
 
 if __name__ == "__main__":
-    main()
+    main() 
