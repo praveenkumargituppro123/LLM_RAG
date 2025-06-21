@@ -207,61 +207,7 @@ def main():
     # Process PDFs only if Confirm is clicked and PDFs are available
     if st.session_state.processing_triggered and pdf_files:
         with st.spinner("Loading documents..."):
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
             data = load_data(st.session_state.upload_dir)
         st.write(f"Number of documents loaded: {len(data)}")
 
